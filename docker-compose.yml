@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # Application service
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: webapp-app
+    ports:
+      - "5173:5173"  # Frontend
+      - "3001:3001"  # API
+    environment:
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=password
+      - DB_NAME=webapp_db
+      - API_PORT=3001
+      - KEYCLOAK_URL=http://keycloak:8080/auth
+      - KEYCLOAK_REALM=webapp
+      - KEYCLOAK_CLIENT_ID=webapp-client
+      - KEYCLOAK_CLIENT_SECRET=your-client-secret
+      - KEYCLOAK_ADMIN_USERNAME=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - VITE_HOST=0.0.0.0  # Expose Vite server to all network interfaces
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+    depends_on:
+      - db
+      - keycloak
+    networks:
+      - webapp-network
+    restart: unless-stopped
+
+  # Database service
+  db:
+    image: mysql:8.0
+    container_name: webapp-db
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+      - MYSQL_DATABASE=webapp_db
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - webapp-network
+    restart: unless-stopped
+
+  # Keycloak service
+  keycloak:
+    image: quay.io/keycloak/keycloak:21.1
+    container_name: webapp-keycloak
+    ports:
+      - "8080:8080"
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KC_DB=mysql
+      - KC_DB_URL=jdbc:mysql://db:3306/keycloak
+      - KC_DB_USERNAME=root
+      - KC_DB_PASSWORD=password
+    command:
+      - start-dev
+    depends_on:
+      - db
+    networks:
+      - webapp-network
+    restart: unless-stopped
+
+networks:
+  webapp-network:
+    driver: bridge
+
+volumes:
+  mysql-data: 
